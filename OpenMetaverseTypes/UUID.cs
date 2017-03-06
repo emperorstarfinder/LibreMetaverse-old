@@ -25,6 +25,7 @@
  */
 
 using System;
+using System.Security.Cryptography;
 
 namespace OpenMetaverse
 {
@@ -36,7 +37,7 @@ namespace OpenMetaverse
     public struct UUID : IComparable<UUID>, IEquatable<UUID>
     {
         /// <summary>The System.Guid object this struct wraps around</summary>
-        public Guid Guid;
+        public readonly Guid Guid;
 
         #region Constructors
 
@@ -48,10 +49,7 @@ namespace OpenMetaverse
         /// <example>UUID("11f8aa9c-b071-4242-836b-13b7abe0d489")</example>
         public UUID(string val)
         {
-            if (String.IsNullOrEmpty(val))
-                Guid = new Guid();
-            else
-                Guid = new Guid(val);
+            Guid = string.IsNullOrEmpty(val) ? new Guid() : new Guid(val);
         }
 
         /// <summary>
@@ -181,15 +179,14 @@ namespace OpenMetaverse
         {
             byte[] bytes = Guid.ToByteArray();
 
-            return (ulong)
-                ((ulong)bytes[8] +
-                ((ulong)bytes[9] << 8) +
-                ((ulong)bytes[10] << 16) +
-                ((ulong)bytes[12] << 24) +
-                ((ulong)bytes[13] << 32) +
-                ((ulong)bytes[13] << 40) +
-                ((ulong)bytes[14] << 48) +
-                ((ulong)bytes[15] << 56));
+            return (ulong)bytes[8] +
+                   ((ulong)bytes[9] << 8) +
+                   ((ulong)bytes[10] << 16) +
+                   ((ulong)bytes[12] << 24) +
+                   ((ulong)bytes[13] << 32) +
+                   ((ulong)bytes[13] << 40) +
+                   ((ulong)bytes[14] << 48) +
+                   ((ulong)bytes[15] << 56);
         }
 
         #endregion Public Methods
@@ -218,7 +215,7 @@ namespace OpenMetaverse
         /// <example>UUID.TryParse("11f8aa9c-b071-4242-836b-13b7abe0d489", result)</example>
         public static bool TryParse(string val, out UUID result)
         {
-            if (String.IsNullOrEmpty(val) ||
+            if (string.IsNullOrEmpty(val) ||
                 (val[0] == '{' && val.Length != 38) ||
                 (val.Length != 36 && val.Length != 32))
             {
@@ -258,10 +255,26 @@ namespace OpenMetaverse
         /// <summary>
         /// 
         /// </summary>
-        /// <returns></returns>
+        /// <returns>UUID</returns>
         public static UUID Random()
         {
             return new UUID(Guid.NewGuid());
+        }
+
+        /// <summary>
+        /// Slower than Random(), but generates a cryptographically secure UUID
+        /// </summary>
+        /// <returns>UUID</returns>
+        public static UUID SecureRandom()
+        {
+            var rng = new RNGCryptoServiceProvider();
+            byte[] data = new byte[16];
+            rng.GetBytes(data);
+
+            // Mark as UUIDv4
+            data[7] = (byte)((data[7] | 0x40) & 0x4f);
+            data[8] = (byte)((data[8] | 0x80) & 0xbf);
+            return new UUID(new Guid(data));
         }
 
         #endregion Static Methods
@@ -308,10 +321,7 @@ namespace OpenMetaverse
         /// <example>11f8aa9c-b071-4242-836b-13b7abe0d489</example>
         public override string ToString()
         {
-            if (Guid == Guid.Empty)
-                return ZeroString;
-            else
-                return Guid.ToString();
+            return Guid == Guid.Empty ? ZeroString : Guid.ToString();
         }
 
         #endregion Overrides
@@ -352,7 +362,7 @@ namespace OpenMetaverse
             byte[] rhsbytes = rhs.GetBytes();
             byte[] output = new byte[16];
 
-            for (int i = 0; i < 16; i++)
+            for (var i = 0; i < 16; i++)
             {
                 output[i] = (byte)(lhsbytes[i] ^ rhsbytes[i]);
             }
