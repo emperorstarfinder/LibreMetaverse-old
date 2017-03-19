@@ -28,7 +28,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.IO;
-using ComponentAce.Compression.Libs.zlib;
+using zlib;
 using OpenMetaverse.StructuredData;
 using OpenMetaverse.Interfaces;
 
@@ -4451,7 +4451,7 @@ namespace OpenMetaverse.Messages.Linden
 
     public class GetObjectCostRequest : IMessage
     {
-        /// <summary> Object IDs for which to request cost information
+        /// <summary> Object IDs for which to request cost information </summary>
         public UUID[] ObjectIDs;
 
         /// <summary>
