@@ -655,8 +655,16 @@ namespace OpenMetaverse
         [Obsolete]
         public UUID GetWearableAsset(WearableType type)
         {
-            List<WearableData> wearableList;
-            return Wearables.TryGetValue(type, out wearableList) ? wearableList.First().AssetID : UUID.Zero;
+            IList<WearableData> wearableList;
+            return Wearables.TryGetValue(type, out wearableList) 
+                ? wearableList.First().AssetID 
+                : UUID.Zero;
+        }
+
+        public IEnumerable<UUID> GetWearableAssets(WearableType type)
+        {
+            IList<WearableData> wearables = Wearables.GetValues(type, true);
+            return wearables.Select(wearable => wearable.AssetID).ToList();
         }
 
         /// <summary>
@@ -677,7 +685,7 @@ namespace OpenMetaverse
         public void AddToOutfit(InventoryItem wearableItem, bool replace)
         {
             List<InventoryItem> wearableItems = new List<InventoryItem> { wearableItem };
-            AddToOutfit(wearableItems, true);
+            AddToOutfit(wearableItems, replace);
         }
 
         /// <summary>
@@ -721,8 +729,9 @@ namespace OpenMetaverse
                         ItemID = wearableItem.UUID,
                         WearableType = wearableItem.WearableType
                     };
-
-                    Wearables[wearableItem.WearableType].Add(wd);
+                    if (replace) // Dump everything from the key
+                        Wearables.Remove(wearableItem.WearableType);
+                    Wearables.Add(wearableItem.WearableType, wd);
                 }
             }
 
@@ -777,15 +786,13 @@ namespace OpenMetaverse
                     if (t.AssetType != AssetType.Bodypart        // Remove if it's not a body part
                         && Wearables.ContainsKey(wearableItem.WearableType)) // And we have that wearable type
                     {
-                        WearableData wd = new WearableData
+                        var worn = Wearables.GetValues(wearableItem.WearableType, true);
+                        WearableData wearable = worn.FirstOrDefault(item => item.ItemID == wearableItem.UUID);
+                        if (wearable != null)
                         {
-                            AssetID = wearableItem.AssetUUID,
-                            AssetType = wearableItem.AssetType,
-                            ItemID = wearableItem.UUID,
-                            WearableType = wearableItem.WearableType
-                        };
-                        Wearables.Remove(wearableItem.WearableType, wd); // And we are wearing it)
-                        needSetAppearance = true;
+                            Wearables.Remove(wearableItem.WearableType, wearable);
+                            needSetAppearance = true;
+                        }
                     }
                 }
             }
@@ -905,10 +912,20 @@ namespace OpenMetaverse
             lock (Wearables)
             {
                 var wearables = new List<WearableData>();
-                foreach (var layer in Wearables)
+                foreach (var wearableType in Wearables.Values)
                 {
-                    wearables.AddRange(layer.Value);
+                    wearables.AddRange(wearableType);
                 }
+                return wearables;
+            }
+        }
+
+        public MultiValueDictionary<WearableType, WearableData> GetWearablesByType()
+        {
+            lock (Wearables)
+            {
+                var wearables = new MultiValueDictionary<WearableType, WearableData>();
+                wearables.Merge(Wearables);
                 return wearables;
             }
         }
@@ -1191,7 +1208,7 @@ namespace OpenMetaverse
                     {
                         if (entry.AssetType == AssetType.Bodypart)
                         {
-                            newWearables[wearableType.Key].Add(entry);
+                            newWearables.Add(wearableType.Key, entry);
                         }
                     }
                 }
@@ -1207,7 +1224,7 @@ namespace OpenMetaverse
                         WearableType = wearableItem.WearableType
                     };
 
-                    newWearables[wearableItem.WearableType].Add(wd);
+                    newWearables.Add(wearableItem.WearableType, wd);
                 }
 
                 // Replace the Wearables collection
@@ -1497,11 +1514,7 @@ namespace OpenMetaverse
         {
             bool success = true;
             // Make a copy of the wearables dictionary to enumerate over
-            var wearables = new List<WearableData>();
-            lock (Wearables)
-            {
-                wearables.AddRange(Wearables.SelectMany(type => type.Value));
-            }
+            var wearables = new List<WearableData>(GetWearables());
 
             // We will refresh the textures (zero out all non bake textures)
             for (int i = 0; i < Textures.Length; i++)
@@ -2280,7 +2293,7 @@ namespace OpenMetaverse
                         };
 
                         // Add this wearable to our collection
-                        Wearables[type].Add(data);
+                        Wearables.Add(type, data);
                     }
                 }
                 else
