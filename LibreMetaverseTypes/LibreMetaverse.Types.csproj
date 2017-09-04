@@ -3,14 +3,14 @@
     <ProjectType>Local</ProjectType>
     <ProductVersion>14.0.25123</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{27C70F3A-0000-0000-0000-000000000000}</ProjectGuid>
+    <ProjectGuid>{B37B02AD-0000-0000-0000-000000000000}</ProjectGuid>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <AssemblyName>LibreMetaverse</AssemblyName>
+    <AssemblyName>LibreMetaverse.Types</AssemblyName>
     <DefaultClientScript>JScript</DefaultClientScript>
     <DefaultHTMLPageLayout>Grid</DefaultHTMLPageLayout>
     <DefaultTargetSchema>IE50</DefaultTargetSchema>
     <DelaySign>false</DelaySign>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFrameworks>netstandard2.0;net461</TargetFrameworks>
     <OutputType>Library</OutputType>
     <RootNamespace>LibreMetaverse</RootNamespace>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
@@ -37,7 +37,7 @@
     <BaseAddress>285212672</BaseAddress>
     <CheckForOverflowUnderflow>False</CheckForOverflowUnderflow>
     <DefineConstants>TRACE</DefineConstants>
-    <DocumentationFile>LibreMetaverse.XML</DocumentationFile>
+    <DocumentationFile>LibreMetaverseTypes.XML</DocumentationFile>
     <DebugSymbols>False</DebugSymbols>
     <FileAlignment>4096</FileAlignment>
     <Optimize>True</Optimize>
@@ -51,14 +51,7 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="ComponentAce.Compression.Libs.zlib" Version="1.0.4" />
-    <PackageReference Include="log4net" Version="2.0.8" />
-    <PackageReference Include="XmlRpcCS" Version="2.1.1.2" />
-    <PackageReference Include="ZKWeb.System.Drawing" Version="4.0.0" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\LibreMetaverse.StructuredData\LibreMetaverse.StructuredData.csproj" />
-    <ProjectReference Include="..\LibreMetaverseTypes\LibreMetaverse.Types.csproj" />
+    <PackageReference Include="protobuf-net" Version="2.3.2" />
   </ItemGroup>
   <PropertyGroup>
     <PreBuildEvent>

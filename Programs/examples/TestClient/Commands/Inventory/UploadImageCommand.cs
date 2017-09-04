@@ -1,10 +1,7 @@
 using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Threading;
-using System.Drawing;
-using OpenMetaverse;
-using OpenMetaverse.Http;
+using System.DrawingCore;
+using System.DrawingCore.Drawing2D;
 using OpenMetaverse.Imaging;
 
 namespace OpenMetaverse.TestClient
@@ -102,7 +99,7 @@ namespace OpenMetaverse.TestClient
                     if (lowfilename.EndsWith(".tga"))
                         bitmap = LoadTGAClass.LoadTGA(fileName);
                     else
-                        bitmap = (Bitmap)System.Drawing.Image.FromFile(fileName);
+                        bitmap = (Bitmap)Image.FromFile(fileName);
 
                     int oldwidth = bitmap.Width;
                     int oldheight = bitmap.Height;
@@ -112,9 +109,8 @@ namespace OpenMetaverse.TestClient
                         Bitmap resized = new Bitmap(256, 256, bitmap.PixelFormat);
                         Graphics graphics = Graphics.FromImage(resized);
 
-                        graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
-                        graphics.InterpolationMode =
-                           System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                        graphics.SmoothingMode = SmoothingMode.HighQuality;
+                        graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
                         graphics.DrawImage(bitmap, 0, 0, 256, 256);
 
                         bitmap.Dispose();
@@ -133,9 +129,9 @@ namespace OpenMetaverse.TestClient
                         Bitmap resized = new Bitmap(newwidth, newheight, bitmap.PixelFormat);
                         Graphics graphics = Graphics.FromImage(resized);
 
-                        graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+                        graphics.SmoothingMode = SmoothingMode.HighQuality;
                         graphics.InterpolationMode =
-                           System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                           InterpolationMode.HighQualityBicubic;
                         graphics.DrawImage(bitmap, 0, 0, newwidth, newheight);
 
                         bitmap.Dispose();

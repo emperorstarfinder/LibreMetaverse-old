@@ -25,6 +25,8 @@
  */
 
 using System;
+using System.DrawingCore;
+using System.DrawingCore.Imaging;
 
 namespace OpenMetaverse.Imaging
 {
@@ -121,14 +123,14 @@ namespace OpenMetaverse.Imaging
         /// 
         /// </summary>
         /// <param name="bitmap"></param>
-        public ManagedImage(System.Drawing.Bitmap bitmap)
+        public ManagedImage(Bitmap bitmap)
         {
             Width = bitmap.Width;
             Height = bitmap.Height;
 
             int pixelCount = Width * Height;
 
-            if (bitmap.PixelFormat == System.Drawing.Imaging.PixelFormat.Format32bppArgb)
+            if (bitmap.PixelFormat == PixelFormat.Format32bppArgb)
             {
                 Channels = ImageChannels.Alpha | ImageChannels.Color;
                 Red = new byte[pixelCount];
@@ -136,8 +138,8 @@ namespace OpenMetaverse.Imaging
                 Blue = new byte[pixelCount];
                 Alpha = new byte[pixelCount];
 
-                System.Drawing.Imaging.BitmapData bd = bitmap.LockBits(new System.Drawing.Rectangle(0, 0, Width, Height),
-                    System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                BitmapData bd = bitmap.LockBits(new Rectangle(0, 0, Width, Height),
+                    ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
 
                 unsafe
                 {
@@ -155,22 +157,22 @@ namespace OpenMetaverse.Imaging
 
                 bitmap.UnlockBits(bd);
             }
-            else if (bitmap.PixelFormat == System.Drawing.Imaging.PixelFormat.Format16bppGrayScale)
+            else if (bitmap.PixelFormat == PixelFormat.Format16bppGrayScale)
             {
                 Channels = ImageChannels.Gray;
                 Red = new byte[pixelCount];
 
                 throw new NotImplementedException("16bpp grayscale image support is incomplete");
             }
-            else if (bitmap.PixelFormat == System.Drawing.Imaging.PixelFormat.Format24bppRgb)
+            else if (bitmap.PixelFormat == PixelFormat.Format24bppRgb)
             {
                 Channels = ImageChannels.Color;
                 Red = new byte[pixelCount];
                 Green = new byte[pixelCount];
                 Blue = new byte[pixelCount];
 
-                System.Drawing.Imaging.BitmapData bd = bitmap.LockBits(new System.Drawing.Rectangle(0, 0, Width, Height),
-                        System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
+                BitmapData bd = bitmap.LockBits(new Rectangle(0, 0, Width, Height),
+                        ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
 
                 unsafe
                 {
@@ -187,15 +189,15 @@ namespace OpenMetaverse.Imaging
 
                 bitmap.UnlockBits(bd);
             }
-			else if (bitmap.PixelFormat == System.Drawing.Imaging.PixelFormat.Format32bppRgb)
+			else if (bitmap.PixelFormat == PixelFormat.Format32bppRgb)
 			{
 				Channels = ImageChannels.Color;
 				Red = new byte[pixelCount];
 				Green = new byte[pixelCount];
 				Blue = new byte[pixelCount];
 
-				System.Drawing.Imaging.BitmapData bd = bitmap.LockBits(new System.Drawing.Rectangle(0, 0, Width, Height),
-						System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppRgb);
+				BitmapData bd = bitmap.LockBits(new Rectangle(0, 0, Width, Height),
+						ImageLockMode.ReadOnly, PixelFormat.Format32bppRgb);
 
 				unsafe
 				{
@@ -382,7 +384,7 @@ namespace OpenMetaverse.Imaging
         /// origin, suitable for feeding directly into OpenGL
         /// </summary>
         /// <returns>A byte array containing raw texture data</returns>
-        public System.Drawing.Bitmap ExportBitmap()
+        public Bitmap ExportBitmap()
         {
             byte[] raw = new byte[Width * Height * 4];
 
@@ -423,14 +425,14 @@ namespace OpenMetaverse.Imaging
                 }
             }
 
-            System.Drawing.Bitmap b = new System.Drawing.Bitmap(
+            Bitmap b = new Bitmap(
                         Width,
                         Height,
-                        System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                        PixelFormat.Format32bppArgb);
 
-            System.Drawing.Imaging.BitmapData bd = b.LockBits(new System.Drawing.Rectangle(0, 0, b.Width, b.Height),
-                System.Drawing.Imaging.ImageLockMode.WriteOnly,
-                System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            BitmapData bd = b.LockBits(new Rectangle(0, 0, b.Width, b.Height),
+                ImageLockMode.WriteOnly,
+                PixelFormat.Format32bppArgb);
 
             System.Runtime.InteropServices.Marshal.Copy(raw, 0, bd.Scan0, Width * Height * 4);
 
