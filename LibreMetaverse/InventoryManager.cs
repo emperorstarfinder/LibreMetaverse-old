@@ -1774,14 +1774,16 @@ namespace OpenMetaverse
                 OSDMap link = new OSDMap
                 {
                     ["linked_id"] = OSD.FromUUID(itemID),
-                    ["type"] = OSD.FromString(Utils.AssetTypeToString(assetType)),
-                    ["inv_type"] = OSD.FromString(Utils.InventoryTypeToString(invType)),
+                    ["type"] = OSD.FromInteger((int)assetType),
+                    ["inv_type"] = OSD.FromInteger((int)invType),
                     ["name"] = OSD.FromString(name),
                     ["desc"] = OSD.FromString(description)
                 };
                 links.Add(link);
 
                 OSDMap newInventory = new OSDMap {{"links", links}};
+                // FIXME: THis callback doesn't work anymore. Needs fixed.
+                RegisterItemCreatedCallback(callback);
                 Client.AisClient.CreateInventory(folderID, newInventory, null).ConfigureAwait(false);
             }
             else
