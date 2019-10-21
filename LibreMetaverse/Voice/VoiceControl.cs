@@ -79,6 +79,7 @@ namespace OpenMetaverse.Voice
 
         // Position update thread
         private Thread posThread;
+        private CancellationTokenSource posTokenSource;
         private ManualResetEvent posRestart;
         public GridClient Client;
         private VoicePosition position;
@@ -133,7 +134,12 @@ namespace OpenMetaverse.Voice
         {
             // Start the background thread
             if (posThread != null && posThread.IsAlive)
-                posThread.Abort();
+            {
+                posRestart.Set();
+                posTokenSource.Cancel();
+            }
+            
+            posTokenSource = new CancellationTokenSource();
             posThread = new Thread(new ThreadStart(PositionThreadBody));
             posThread.Name = "VoicePositionUpdate";
             posThread.IsBackground = true;
@@ -252,10 +258,11 @@ namespace OpenMetaverse.Voice
             // Stop the background thread
             if (posThread != null)
             {
-                PosUpdating(false);
-
                 if (posThread.IsAlive)
-                    posThread.Abort();
+                {
+                    posRestart.Set();
+                    posTokenSource.Cancel();
+                }
                 posThread = null;
             }
 
@@ -345,10 +352,8 @@ namespace OpenMetaverse.Voice
 
         void RequestVoiceProvision(System.Uri cap)
         {
-            OpenMetaverse.Http.CapsClient capClient =
-                new OpenMetaverse.Http.CapsClient(cap);
-            capClient.OnComplete +=
-                new OpenMetaverse.Http.CapsClient.CompleteCallback(cClient_OnComplete);
+            Http.CapsClient capClient = new Http.CapsClient(cap, "ReqVoiceProvision");
+            capClient.OnComplete += cClient_OnComplete;
             OSD postData = new OSD();
 
             // STEP 0
@@ -422,7 +427,7 @@ namespace OpenMetaverse.Voice
             string result = null;
 
             if (id == UUID.Zero)
-                return result;
+                return null;
 
             // Prepending this apparently prevents conflicts with reserved names inside the vivox and diamondware code.
             result = "x";
@@ -881,9 +886,9 @@ namespace OpenMetaverse.Voice
         {
             Logger.Log("Requesting region voice info", Helpers.LogLevel.Info);
 
-            parcelCap = new OpenMetaverse.Http.CapsClient(cap);
+            parcelCap = new OpenMetaverse.Http.CapsClient(cap, "RequestParcelInfo");
             parcelCap.OnComplete +=
-                new OpenMetaverse.Http.CapsClient.CompleteCallback(pCap_OnComplete);
+                pCap_OnComplete;
             OSD postData = new OSD();
 
             currentParcelCap = cap;
@@ -926,7 +931,7 @@ namespace OpenMetaverse.Voice
                     spatialCredentials = cred["channel_credentials"].AsString();
             }
 
-            if (spatialUri == null || spatialUri == "")
+            if (string.IsNullOrEmpty(spatialUri))
             {
                 // "No voice chat allowed here");
                 return;
@@ -999,9 +1004,12 @@ namespace OpenMetaverse.Voice
 
         private void PositionThreadBody()
         {
+            var token = posTokenSource.Token;
             while (true)
             {
                 posRestart.WaitOne();
+                token.ThrowIfCancellationRequested();
+                
                 Thread.Sleep(1500);
                 UpdatePosition(Client.Self);
             }

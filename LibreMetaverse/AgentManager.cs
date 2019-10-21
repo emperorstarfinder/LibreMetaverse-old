@@ -1870,16 +1870,14 @@ namespace OpenMetaverse
         public void ChatterBoxAcceptInvite(UUID session_id)
         {
             if (Client.Network.CurrentSim == null || Client.Network.CurrentSim.Caps == null)
-                throw new Exception("ChatSessionRequest capability is not currently available");
-
-            Uri url = Client.Network.CurrentSim.Caps.CapabilityURI("ChatSessionRequest");
-
-            if (url != null)
             {
-                ChatSessionAcceptInvitation acceptInvite = new ChatSessionAcceptInvitation();
-                acceptInvite.SessionID = session_id;
+                throw new Exception("ChatSessionRequest capability is not currently available");
+            }
 
-                CapsClient request = new CapsClient(url);
+            CapsClient request = Client.Network.CurrentSim.Caps.CreateCapsClient("ChatSessionRequest");
+            if (request != null)
+            {
+                ChatSessionAcceptInvitation acceptInvite = new ChatSessionAcceptInvitation {SessionID = session_id};
                 request.BeginGetResponse(acceptInvite.Serialize(), OSDFormat.Xml, Client.Settings.CAPS_TIMEOUT);
 
                 lock (GroupChatSessions.Dictionary)
@@ -1901,11 +1899,11 @@ namespace OpenMetaverse
         public void StartIMConference(List<UUID> participants, UUID tmp_session_id)
         {
             if (Client.Network.CurrentSim == null || Client.Network.CurrentSim.Caps == null)
+            {
                 throw new Exception("ChatSessionRequest capability is not currently available");
-
-            Uri url = Client.Network.CurrentSim.Caps.CapabilityURI("ChatSessionRequest");
-
-            if (url != null)
+            }
+            CapsClient request = Client.Network.CurrentSim.Caps.CreateCapsClient("ChatSessionRequest");
+            if (request != null)
             {
                 ChatSessionRequestStartConference startConference = new ChatSessionRequestStartConference
                 {
@@ -1913,11 +1911,12 @@ namespace OpenMetaverse
                 };
 
                 for (int i = 0; i < participants.Count; i++)
+                {
                     startConference.AgentsBlock[i] = participants[i];
+                }
 
                 startConference.SessionID = tmp_session_id;
 
-                CapsClient request = new CapsClient(url);
                 request.BeginGetResponse(startConference.Serialize(), OSDFormat.Xml, Client.Settings.CAPS_TIMEOUT);
             }
             else
@@ -2348,6 +2347,9 @@ namespace OpenMetaverse
 
         #region Touch and grab
 
+        public static readonly Vector3 TOUCH_INVALID_TEXCOORD = new Vector3(-1.0f, -1.0f, 0.0f);
+        public static readonly Vector3 TOUCH_INVALID_VECTOR = Vector3.Zero;
+
         /// <summary>
         /// Grabs an object
         /// </summary>
@@ -2355,7 +2357,8 @@ namespace OpenMetaverse
         /// <seealso cref="Simulator.ObjectsPrimitives"/>
         public void Grab(uint objectLocalID)
         {
-            Grab(objectLocalID, Vector3.Zero, Vector3.Zero, Vector3.Zero, 0, Vector3.Zero, Vector3.Zero, Vector3.Zero);
+            Grab(objectLocalID, Vector3.Zero, TOUCH_INVALID_TEXCOORD, TOUCH_INVALID_TEXCOORD, 
+                0, TOUCH_INVALID_VECTOR, TOUCH_INVALID_VECTOR, TOUCH_INVALID_VECTOR);
         }
 
         /// <summary>
@@ -2367,11 +2370,11 @@ namespace OpenMetaverse
         /// <param name="stCoord">The surface coordinates to grab</param>
         /// <param name="faceIndex">The face of the position to grab</param>
         /// <param name="position">The region coordinates of the position to grab</param>
-        /// <param name="normal">The surface normal of the position to grab (A normal is a vector perpindicular to the surface)</param>
-        /// <param name="binormal">The surface binormal of the position to grab (A binormal is a vector tangen to the surface
+        /// <param name="normal">The surface normal of the position to grab (A normal is a vector perpendicular to the surface)</param>
+        /// <param name="binormal">The surface bi-normal of the position to grab (A bi-normal is a vector tangent to the surface
         /// pointing along the U direction of the tangent space</param>
-        public void Grab(uint objectLocalID, Vector3 grabOffset, Vector3 uvCoord, Vector3 stCoord, int faceIndex, Vector3 position,
-            Vector3 normal, Vector3 binormal)
+        public void Grab(uint objectLocalID, Vector3 grabOffset, Vector3 uvCoord, Vector3 stCoord, 
+            int faceIndex, Vector3 position, Vector3 normal, Vector3 binormal)
         {
             ObjectGrabPacket grab = new ObjectGrabPacket
             {
@@ -2408,7 +2411,8 @@ namespace OpenMetaverse
         /// <param name="grabPosition">Drag target in region coordinates</param>
         public void GrabUpdate(UUID objectID, Vector3 grabPosition)
         {
-            GrabUpdate(objectID, grabPosition, Vector3.Zero, Vector3.Zero, Vector3.Zero, 0, Vector3.Zero, Vector3.Zero, Vector3.Zero);
+            GrabUpdate(objectID, grabPosition, Vector3.Zero, Vector3.Zero, Vector3.Zero, 
+                0, Vector3.Zero, Vector3.Zero, Vector3.Zero);
         }
 
         /// <summary>
@@ -2421,11 +2425,11 @@ namespace OpenMetaverse
         /// <param name="stCoord">The surface coordinates to grab</param>
         /// <param name="faceIndex">The face of the position to grab</param>
         /// <param name="position">The region coordinates of the position to grab</param>
-        /// <param name="normal">The surface normal of the position to grab (A normal is a vector perpindicular to the surface)</param>
-        /// <param name="binormal">The surface binormal of the position to grab (A binormal is a vector tangen to the surface
+        /// <param name="normal">The surface normal of the position to grab (A normal is a vector perpendicular to the surface)</param>
+        /// <param name="binormal">The surface bi-normal of the position to grab (A bi-normal is a vector tangent to the surface
         /// pointing along the U direction of the tangent space</param>
-        public void GrabUpdate(UUID objectID, Vector3 grabPosition, Vector3 grabOffset, Vector3 uvCoord, Vector3 stCoord, int faceIndex, Vector3 position,
-            Vector3 normal, Vector3 binormal)
+        public void GrabUpdate(UUID objectID, Vector3 grabPosition, Vector3 grabOffset, Vector3 uvCoord, Vector3 stCoord, 
+            int faceIndex, Vector3 position, Vector3 normal, Vector3 binormal)
         {
             ObjectGrabUpdatePacket grab = new ObjectGrabUpdatePacket
             {
@@ -2466,7 +2470,8 @@ namespace OpenMetaverse
         /// <seealso cref="GrabUpdate"/>
         public void DeGrab(uint objectLocalID)
         {
-            DeGrab(objectLocalID, Vector3.Zero, Vector3.Zero, 0, Vector3.Zero, Vector3.Zero, Vector3.Zero);
+            DeGrab(objectLocalID, TOUCH_INVALID_TEXCOORD, TOUCH_INVALID_TEXCOORD, 
+                0, TOUCH_INVALID_VECTOR, TOUCH_INVALID_VECTOR, TOUCH_INVALID_VECTOR);
         }
 
         /// <summary>
@@ -2477,11 +2482,11 @@ namespace OpenMetaverse
         /// <param name="stCoord">The surface coordinates to grab</param>
         /// <param name="faceIndex">The face of the position to grab</param>
         /// <param name="position">The region coordinates of the position to grab</param>
-        /// <param name="normal">The surface normal of the position to grab (A normal is a vector perpindicular to the surface)</param>
-        /// <param name="binormal">The surface binormal of the position to grab (A binormal is a vector tangen to the surface
+        /// <param name="normal">The surface normal of the position to grab (A normal is a vector perpendicular to the surface)</param>
+        /// <param name="binormal">The surface bi-normal of the position to grab (A bi-normal is a vector tangent to the surface
         /// pointing along the U direction of the tangent space</param>
-        public void DeGrab(uint objectLocalID, Vector3 uvCoord, Vector3 stCoord, int faceIndex, Vector3 position,
-            Vector3 normal, Vector3 binormal)
+        public void DeGrab(uint objectLocalID, Vector3 uvCoord, Vector3 stCoord, 
+            int faceIndex, Vector3 position, Vector3 normal, Vector3 binormal)
         {
             ObjectDeGrabPacket degrab = new ObjectDeGrabPacket
             {
@@ -2659,7 +2664,7 @@ namespace OpenMetaverse
         /// <param name="gestureID">Asset <seealso cref="UUID"/> of the gesture</param>
         public void PlayGesture(UUID gestureID)
         {
-            Thread t = new Thread(delegate()
+            ThreadPool.QueueUserWorkItem((_) =>
             {
                 // First fetch the guesture
                 AssetGesture gesture = null;
@@ -2758,13 +2763,7 @@ namespace OpenMetaverse
                             break;
                     }
                 }
-            })
-            {
-                IsBackground = true,
-                Name = $"Gesture thread: {gestureID}"
-            };
-
-            t.Start();
+            });
         }
 
         /// <summary>
@@ -3549,7 +3548,7 @@ namespace OpenMetaverse
         /// Create or update profile Classified
         /// </summary>
         /// <param name="classifiedID">UUID of the classified to update, or random UUID to create a new classified</param>
-        /// <param name="category">Defines what catagory the classified is in</param>
+        /// <param name="category">Defines what category the classified is in</param>
         /// <param name="snapshotID">UUID of the image displayed with the classified</param>
         /// <param name="price">Price that the classified will cost to place for a week</param>
         /// <param name="position">Global position of the classified landmark</param>
@@ -3588,7 +3587,7 @@ namespace OpenMetaverse
         /// Create or update profile Classified
         /// </summary>
         /// <param name="classifiedID">UUID of the classified to update, or random UUID to create a new classified</param>
-        /// <param name="category">Defines what catagory the classified is in</param>
+        /// <param name="category">Defines what category the classified is in</param>
         /// <param name="snapshotID">UUID of the image displayed with the classified</param>
         /// <param name="price">Price that the classified will cost to place for a week</param>
         /// <param name="name">Name of the classified</param>
@@ -3619,15 +3618,14 @@ namespace OpenMetaverse
         }
 
         /// <summary>
-        /// Fetches resource usage by agents attachmetns
+        /// Fetches resource usage by agents attachments
         /// </summary>
         /// <param name="callback">Called when the requested information is collected</param>
         public void GetAttachmentResources(AttachmentResourcesCallback callback)
         {
             try
             {
-                Uri url = Client.Network.CurrentSim.Caps.CapabilityURI("AttachmentResources");
-                CapsClient request = new CapsClient(url);
+                CapsClient request = Client.Network.CurrentSim.Caps.CreateCapsClient("AttachmentResources");
 
                 request.OnComplete += delegate(CapsClient client, OSD result, Exception error)
                 {
@@ -3658,19 +3656,25 @@ namespace OpenMetaverse
         }
 
         /// <summary>
-        /// Initates request to set a new display name
+        /// Initiates request to set a new display name
         /// </summary>
         /// <param name="oldName">Previous display name</param>
         /// <param name="newName">Desired new display name</param>
         public void SetDisplayName(string oldName, string newName)
         {
-            Uri uri;
-
-            if (Client.Network.CurrentSim == null ||
-                Client.Network.CurrentSim.Caps == null ||
-                (uri = Client.Network.CurrentSim.Caps.CapabilityURI("SetDisplayName")) == null)
+            if (Client.Network.CurrentSim == null || Client.Network.CurrentSim.Caps == null)
             {
-                Logger.Log("Unable to invoke SetDisplyName capability at this time", Helpers.LogLevel.Warning, Client);
+                Logger.Log("Not connected to simulator. " +
+                           "Unable to set display name.",
+                    Helpers.LogLevel.Warning, Client);
+                return;
+            }
+
+            CapsClient request = Client.Network.CurrentSim.Caps.CreateCapsClient("SetDisplayName");
+            if (request == null)
+            {
+                Logger.Log("Unable to obtain capability. Unable to set display name.", 
+                    Helpers.LogLevel.Warning, Client);
                 return;
             }
 
@@ -3680,8 +3684,7 @@ namespace OpenMetaverse
                 NewDisplayName = newName
             };
 
-            CapsClient cap = new CapsClient(uri);
-            cap.BeginGetResponse(msg.Serialize(), OSDFormat.Xml, Client.Settings.CAPS_TIMEOUT);
+            request.BeginGetResponse(msg.Serialize(), OSDFormat.Xml, Client.Settings.CAPS_TIMEOUT);
         }
 
         /// <summary>
@@ -3699,16 +3702,12 @@ namespace OpenMetaverse
                     LanguagePublic = isPublic
                 };
 
-                Uri url = Client.Network.CurrentSim.Caps.CapabilityURI("UpdateAgentLanguage");
-                if (url != null)
-                {
-                    CapsClient request = new CapsClient(url);
-                    request.BeginGetResponse(msg.Serialize(), OSDFormat.Xml, Client.Settings.CAPS_TIMEOUT);
-                }
+                CapsClient request = Client.Network.CurrentSim.Caps.CreateCapsClient("UpdateAgentLanguage");
+                request?.BeginGetResponse(msg.Serialize(), OSDFormat.Xml, Client.Settings.CAPS_TIMEOUT);
             }
             catch (Exception ex)
             {
-                Logger.Log("Failes to update agent language", Helpers.LogLevel.Error, Client, ex);
+                Logger.Log("Failed to update agent language", Helpers.LogLevel.Error, Client, ex);
             }
         }
 
@@ -3732,11 +3731,8 @@ namespace OpenMetaverse
         {
             if (Client == null || !Client.Network.Connected || Client.Network.CurrentSim.Caps == null) return;
 
-            Uri url = Client.Network.CurrentSim.Caps.CapabilityURI("UpdateAgentInformation");
-
-            if (url == null) return;
-
-            CapsClient request = new CapsClient(url);
+            CapsClient request = Client.Network.CurrentSim.Caps.CreateCapsClient("UpdateAgentInformation");
+            if (request == null) return;
 
             request.OnComplete += (client, result, error) =>
             {
@@ -3783,13 +3779,9 @@ namespace OpenMetaverse
                 return;
             }
 
-            var url = Client.Network.CurrentSim.Caps.CapabilityURI("AgentPreferences");
-            if (url == null)
-            {
-                return;
-            }
+            CapsClient request = Client.Network.CurrentSim.Caps.CreateCapsClient("AgentPreferences");
+            if (request == null) { return; }
 
-            var request = new CapsClient(url);
             request.OnComplete += (client, result, error) =>
             {
                 var resultMap = result as OSDMap;
@@ -4087,9 +4079,9 @@ namespace OpenMetaverse
 
         protected void AgentStateUpdateEventHandler(string capsKey, IMessage message, Simulator simulator)
         {
-            if (message is AgentStateUpdateMessage)
+            if (message is AgentStateUpdateMessage updateMessage)
             {
-                AgentStateStatus = (AgentStateUpdateMessage)message;
+                AgentStateStatus = updateMessage;
             }
         }
 
@@ -4110,7 +4102,7 @@ namespace OpenMetaverse
             }
             else
             {
-                Logger.Log("Got EstablishAgentCommunication for " + sim.ToString(),
+                Logger.Log("Got EstablishAgentCommunication for " + sim,
                     Helpers.LogLevel.Info, Client);
 
                 sim.SetSeedCaps(msg.SeedCapability.ToString());
@@ -4328,7 +4320,7 @@ namespace OpenMetaverse
 
             if (m_AnimationsChanged != null)
             {
-                WorkPool.QueueUserWorkItem(delegate(object o)
+                ThreadPool.QueueUserWorkItem(delegate(object o)
                 { OnAnimationsChanged(new AnimationsChangedEventArgs(this.SignaledAnimations)); });
             }
 
@@ -4367,9 +4359,12 @@ namespace OpenMetaverse
             homeLookAt = reply.HomeLookAt;
             lookAt = reply.LookAt;
 
-            foreach (var gesture in reply.Gestures)
+            if (reply.Gestures != null)
             {
-                ActiveGestures.Add(gesture.Key, gesture.Value);
+                foreach (var gesture in reply.Gestures)
+                {
+                    ActiveGestures.Add(gesture.Key, gesture.Value);
+                }
             }
         }
 
@@ -4617,9 +4612,9 @@ namespace OpenMetaverse
             if (Client.Network.CurrentSim == null || Client.Network.CurrentSim.Caps == null)
                 throw new Exception("ChatSessionRequest capability is not currently available");
 
-            Uri url = Client.Network.CurrentSim.Caps.CapabilityURI("ChatSessionRequest");
+            CapsClient request = Client.Network.CurrentSim.Caps.CreateCapsClient("ChatSessionRequest");
 
-            if (url != null)
+            if (request != null)
             {
                 ChatSessionRequestMuteUpdate req = new ChatSessionRequestMuteUpdate
                 {
@@ -4629,7 +4624,6 @@ namespace OpenMetaverse
                     AgentID = memberID
                 };
 
-                CapsClient request = new CapsClient(url);
                 request.BeginGetResponse(req.Serialize(), OSDFormat.Xml, Client.Settings.CAPS_TIMEOUT);
             }
             else
@@ -4705,7 +4699,7 @@ namespace OpenMetaverse
                 return;
             }
 
-            WorkPool.QueueUserWorkItem(sync =>
+            ThreadPool.QueueUserWorkItem(sync =>
             {
                 using (AutoResetEvent gotMuteList = new AutoResetEvent(false))
                 {

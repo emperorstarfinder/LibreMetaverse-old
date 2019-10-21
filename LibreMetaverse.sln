@@ -1,10 +1,8 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.27130.2024
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29123.88
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Baker", "Programs\Baker\Baker.csproj", "{95F42663-0000-0000-0000-000000000000}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CSJ2K", "CSJ2K\CSJ2K.csproj", "{C276743B-0000-0000-0000-000000000000}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GridProxy", "Programs\GridProxy\GridProxy.csproj", "{79B51DAA-0000-0000-0000-000000000000}"
 EndProject
@@ -37,6 +35,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VoiceTest", "Programs\Voice
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LibreMetaverse.PrimMesher", "PrimMesher\LibreMetaverse.PrimMesher.csproj", "{2E2B643F-F18B-4791-BA4B-6E82D0E794B6}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mapgenerator", "Programs\mapgenerator\mapgenerator.csproj", "{2867B4B3-0000-0000-0000-000000000000}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -47,10 +47,6 @@ Global
 		{95F42663-0000-0000-0000-000000000000}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{95F42663-0000-0000-0000-000000000000}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{95F42663-0000-0000-0000-000000000000}.Release|Any CPU.Build.0 = Release|Any CPU
-		{C276743B-0000-0000-0000-000000000000}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C276743B-0000-0000-0000-000000000000}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C276743B-0000-0000-0000-000000000000}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C276743B-0000-0000-0000-000000000000}.Release|Any CPU.Build.0 = Release|Any CPU
 		{79B51DAA-0000-0000-0000-000000000000}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{79B51DAA-0000-0000-0000-000000000000}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{79B51DAA-0000-0000-0000-000000000000}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -107,6 +103,10 @@ Global
 		{2E2B643F-F18B-4791-BA4B-6E82D0E794B6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2E2B643F-F18B-4791-BA4B-6E82D0E794B6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2E2B643F-F18B-4791-BA4B-6E82D0E794B6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2867B4B3-0000-0000-0000-000000000000}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2867B4B3-0000-0000-0000-000000000000}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2867B4B3-0000-0000-0000-000000000000}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2867B4B3-0000-0000-0000-000000000000}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

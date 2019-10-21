@@ -42,7 +42,7 @@ namespace OpenMetaverse.Rendering
     {
         const string MeshHeader = "Linden Binary Mesh 1.0";
         const string MorphFooter = "End Morphs";
-        public LindenSkeleton Skeleton { get; private set; }    //!< The skeleton used to animate this mesh
+        public LindenSkeleton Skeleton { get; }    //!< The skeleton used to animate this mesh
 
         #region Mesh Structs
 
@@ -497,7 +497,7 @@ namespace OpenMetaverse.Rendering
         public virtual void LoadLODMesh(int level, string filename)
         {
             if (filename == "avatar_eye_1.llm")
-                throw new ArgumentException("Eyballs are not LOD Meshes", "filename");
+                throw new ArgumentException("Eyeballs are not LOD Meshes", nameof(filename));
 
             LODMesh lod = new LODMesh();
             lod.LoadMesh(filename);
@@ -529,7 +529,7 @@ namespace OpenMetaverse.Rendering
         public virtual ReferenceMesh LoadReferenceMesh(int lodLevel, string filename)
         {
             if (filename == "avatar_eye_1.llm")
-                throw new ArgumentException("Eyballs are not LOD Meshes", "filename");
+                throw new ArgumentException("Eyeballs are not LOD Meshes", nameof(filename));
 
             ReferenceMesh reference = new ReferenceMesh();
             reference.LoadMesh(filename);

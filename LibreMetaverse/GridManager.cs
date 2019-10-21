@@ -423,14 +423,12 @@ namespace OpenMetaverse
         /// <param name="layer"></param>
         public void RequestMapLayer(GridLayerType layer)
         {
-            Uri url = Client.Network.CurrentSim.Caps.CapabilityURI("MapLayer");
+            CapsClient request = Client.Network.CurrentSim.Caps.CreateCapsClient("MapLayer");
 
-            if (url != null)
+            if (request != null)
             {
-                OSDMap body = new OSDMap();
-                body["Flags"] = OSD.FromInteger((int)layer);
+                OSDMap body = new OSDMap {["Flags"] = OSD.FromInteger((int) layer)};
 
-                CapsClient request = new CapsClient(url);
                 request.OnComplete += new CapsClient.CompleteCallback(MapLayerResponseHandler);
                 request.BeginGetResponse(body, OSDFormat.Xml, Client.Settings.CAPS_TIMEOUT);
             }
@@ -836,7 +834,7 @@ namespace OpenMetaverse
 
             if (m_CoarseLocationUpdate != null)
             {
-                WorkPool.QueueUserWorkItem(delegate(object o)
+                ThreadPool.QueueUserWorkItem(delegate(object o)
                 { OnCoarseLocationUpdate(new CoarseLocationUpdateEventArgs(e.Simulator, newEntries, removedEntries)); });
             }
         }

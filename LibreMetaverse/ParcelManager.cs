@@ -606,9 +606,8 @@ namespace OpenMetaverse
         /// the update with a reply packet or not</param>
         public void Update(Simulator simulator, bool wantReply)
         {
-            Uri url = simulator.Caps.CapabilityURI("ParcelPropertiesUpdate");
-
-            if (url != null)
+            CapsClient request = simulator.Caps.CreateCapsClient("ParcelPropertiesUpdate");
+            if (request != null)
             {
                 ParcelPropertiesUpdateMessage req = new ParcelPropertiesUpdateMessage
                 {
@@ -641,12 +640,11 @@ namespace OpenMetaverse
 
                 OSDMap body = req.Serialize();
 
-                CapsClient capsPost = new CapsClient(url);
-                capsPost.BeginGetResponse(body, OSDFormat.Xml, simulator.Client.Settings.CAPS_TIMEOUT);
+                request.BeginGetResponse(body, OSDFormat.Xml, simulator.Client.Settings.CAPS_TIMEOUT);
             }
             else
             {
-                ParcelPropertiesUpdatePacket request = new ParcelPropertiesUpdatePacket
+                ParcelPropertiesUpdatePacket updatePacket = new ParcelPropertiesUpdatePacket
                 {
                     AgentData =
                     {
@@ -671,16 +669,16 @@ namespace OpenMetaverse
 
 
 
-                if (wantReply) request.ParcelData.Flags = 1;
-                request.ParcelData.ParcelFlags = (uint)Flags;
-                request.ParcelData.PassHours = PassHours;
-                request.ParcelData.PassPrice = PassPrice;
-                request.ParcelData.SalePrice = SalePrice;
-                request.ParcelData.SnapshotID = SnapshotID;
-                request.ParcelData.UserLocation = UserLocation;
-                request.ParcelData.UserLookAt = UserLookAt;
+                if (wantReply) updatePacket.ParcelData.Flags = 1;
+                updatePacket.ParcelData.ParcelFlags = (uint)Flags;
+                updatePacket.ParcelData.PassHours = PassHours;
+                updatePacket.ParcelData.PassPrice = PassPrice;
+                updatePacket.ParcelData.SalePrice = SalePrice;
+                updatePacket.ParcelData.SnapshotID = SnapshotID;
+                updatePacket.ParcelData.UserLocation = UserLocation;
+                updatePacket.ParcelData.UserLookAt = UserLookAt;
 
-                simulator.SendPacket(request);
+                simulator.SendPacket(updatePacket);
             }
 
             UpdateOtherCleanTime(simulator);
@@ -1135,7 +1133,7 @@ namespace OpenMetaverse
                             simulator.ParcelMap[y, x] = 0;
             }
 
-            Thread th = new Thread(delegate()
+            ThreadPool.QueueUserWorkItem((_) =>
             {
                 int count = 0, timeouts = 0, y, x;
 
@@ -1167,8 +1165,6 @@ namespace OpenMetaverse
 
                 simulator.DownloadingParcelMap = false;
             });
-
-            th.Start();
         }
 
         /// <summary>
@@ -1652,9 +1648,9 @@ namespace OpenMetaverse
             if (Client.Network.CurrentSim == null || Client.Network.CurrentSim.Caps == null)
                 return UUID.Zero;
 
-            Uri url = Client.Network.CurrentSim.Caps.CapabilityURI("RemoteParcelRequest");
+            CapsClient request = Client.Network.CurrentSim.Caps.CreateCapsClient("RemoteParcelRequest");
 
-            if (url != null)
+            if (request != null)
             {
                 RemoteParcelRequestRequest msg = new RemoteParcelRequestRequest
                 {
@@ -1665,7 +1661,6 @@ namespace OpenMetaverse
 
                 try
                 {
-                    CapsClient request = new CapsClient(url);
                     OSD result = request.GetResponse(msg.Serialize(), OSDFormat.Xml, Client.Settings.CAPS_TIMEOUT);
                     RemoteParcelRequestReply response = new RemoteParcelRequestReply();
                     response.Deserialize((OSDMap)result);
@@ -1691,8 +1686,7 @@ namespace OpenMetaverse
         {
             try
             {
-                Uri url = Client.Network.CurrentSim.Caps.CapabilityURI("LandResources");
-                CapsClient request = new CapsClient(url);
+                CapsClient request = Client.Network.CurrentSim.Caps.CreateCapsClient("LandResources");
 
                 request.OnComplete += delegate(CapsClient client, OSD result, Exception error)
                 {
@@ -1705,7 +1699,7 @@ namespace OpenMetaverse
                         LandResourcesMessage response = new LandResourcesMessage();
                         response.Deserialize((OSDMap)result);
 
-                        CapsClient summaryRequest = new CapsClient(response.ScriptResourceSummary);
+                        CapsClient summaryRequest = new CapsClient(response.ScriptResourceSummary, "ScriptResourceSummary");
                         OSD summaryResponse = summaryRequest.GetResponse(Client.Settings.CAPS_TIMEOUT);
 
                         LandResourcesInfo res = new LandResourcesInfo();
@@ -1713,7 +1707,7 @@ namespace OpenMetaverse
 
                         if (response.ScriptResourceDetails != null && getDetails)
                         {
-                            CapsClient detailRequest = new CapsClient(response.ScriptResourceDetails);
+                            CapsClient detailRequest = new CapsClient(response.ScriptResourceDetails, "ScriptResourceDetails");
                             OSD detailResponse = detailRequest.GetResponse(Client.Settings.CAPS_TIMEOUT);
                             res.Deserialize((OSDMap)detailResponse);
                         }
@@ -1747,7 +1741,7 @@ namespace OpenMetaverse
         /// <remarks>Raises the <see cref="ParcelDwellReply"/> event</remarks>
         protected void ParcelDwellReplyHandler(object sender, PacketReceivedEventArgs e)
         {            
-            if (m_DwellReply != null || Client.Settings.ALWAYS_REQUEST_PARCEL_DWELL == true)
+            if (m_DwellReply != null || Client.Settings.ALWAYS_REQUEST_PARCEL_DWELL)
             {
                 Packet packet = e.Packet;
                 Simulator simulator = e.Simulator;
@@ -1793,7 +1787,7 @@ namespace OpenMetaverse
                 GlobalY = info.Data.GlobalY,
                 GlobalZ = info.Data.GlobalZ,
                 ID = info.Data.ParcelID,
-                Mature = ((info.Data.Flags & 1) != 0) ? true : false,
+                Mature = ((info.Data.Flags & 1) != 0),
                 Name = Utils.BytesToString(info.Data.Name),
                 OwnerID = info.Data.OwnerID,
                 SalePrice = info.Data.SalePrice,
@@ -1933,7 +1927,7 @@ namespace OpenMetaverse
         /// <remarks>Raises the <see cref="ParcelAccessListReply"/> event</remarks>
         protected void ParcelAccessListReplyHandler(object sender, PacketReceivedEventArgs e)
         {
-            if (m_ParcelACL != null || Client.Settings.ALWAYS_REQUEST_PARCEL_ACL == true)
+            if (m_ParcelACL != null || Client.Settings.ALWAYS_REQUEST_PARCEL_ACL)
             {
                 Packet packet = e.Packet;
                 Simulator simulator = e.Simulator;
@@ -2035,11 +2029,11 @@ namespace OpenMetaverse
             ParcelMediaUpdatePacket reply = (ParcelMediaUpdatePacket)packet;
             ParcelMedia media = new ParcelMedia
             {
-                MediaAutoScale = (reply.DataBlock.MediaAutoScale == (byte) 0x1) ? true : false,
+                MediaAutoScale = (reply.DataBlock.MediaAutoScale == (byte) 0x1),
                 MediaID = reply.DataBlock.MediaID,
                 MediaDesc = Utils.BytesToString(reply.DataBlockExtended.MediaDesc),
                 MediaHeight = reply.DataBlockExtended.MediaHeight,
-                MediaLoop = ((reply.DataBlockExtended.MediaLoop & 1) != 0) ? true : false,
+                MediaLoop = ((reply.DataBlockExtended.MediaLoop & 1) != 0),
                 MediaType = Utils.BytesToString(reply.DataBlockExtended.MediaType),
                 MediaWidth = reply.DataBlockExtended.MediaWidth,
                 MediaURL = Utils.BytesToString(reply.DataBlock.MediaURL)
@@ -2077,7 +2071,7 @@ namespace OpenMetaverse
             else
             {
                 Logger.Log("Parcel overlay with sequence ID of " + overlay.ParcelData.SequenceID +
-                    " received from " + simulator.ToString(), Helpers.LogLevel.Warning, Client);
+                    " received from " + simulator, Helpers.LogLevel.Warning, Client);
             }
         }
 
