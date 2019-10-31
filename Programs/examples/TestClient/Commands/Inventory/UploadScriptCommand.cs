@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace OpenMetaverse.TestClient
 {
@@ -24,65 +25,59 @@ namespace OpenMetaverse.TestClient
         /// The default override for TestClient commands
         /// </summary>
         /// <param name="args"></param>
-        /// <param name="fromAgentID"></param>
+        /// <param name="fromAgentId"></param>
         /// <returns></returns>
-        public override string Execute(string[] args, UUID fromAgentID)
+        public override string Execute(string[] args, UUID fromAgentId)
         {
             if (args.Length < 1)
                 return "Usage: uploadscript filename.lsl";
 
-            string file = String.Empty;
-            for (int ct = 0; ct < args.Length; ct++)
-                file = String.Format("{0}{1} ", file, args[ct]);
+            var file = args.Aggregate(string.Empty, (current, t) => $"{current}{t} ");
             file = file.TrimEnd();
 
             if (!File.Exists(file))
-                return String.Format("Filename '{0}' does not exist", file);
-
-            string ret = String.Format("Filename: {0}", file);
-
+                return $"Filename '{file}' does not exist";
+            
             try
             {
-                using (StreamReader reader = new StreamReader(file))
+                using (var reader = new StreamReader(file))
                 {
-                    string body = reader.ReadToEnd();
-                    string desc = String.Format("{0} created by OpenMetaverse TestClient {1}", file, DateTime.Now);
+                    var body = reader.ReadToEnd();
+                    var desc = $"{file} created by OpenMetaverse TestClient {DateTime.Now}";
                     // create the asset
-                    Client.Inventory.RequestCreateItem(Client.Inventory.FindFolderForType(AssetType.LSLText), file, desc, AssetType.LSLText, UUID.Random(), InventoryType.LSL, PermissionMask.All,
-                    delegate(bool success, InventoryItem item)
-                    {
-                        if (success)
-                            // upload the asset
-                            Client.Inventory.RequestUpdateScriptAgentInventory(EncodeScript(body), item.UUID, true, new InventoryManager.ScriptUpdatedCallback(delegate(bool uploadSuccess, string uploadStatus, bool compileSuccess, List<string> compileMessages, UUID itemid, UUID assetid)
-                            {
-                                if (uploadSuccess)
-                                    ret += String.Format(" Script successfully uploaded, ItemID {0} AssetID {1}", itemid, assetid);
-                                if (compileSuccess)
-                                    ret += " compilation successful";
-
-                            }));
-                    });
+                    Client.Inventory.RequestCreateItem(Client.Inventory.FindFolderForType(AssetType.LSLText),
+                        file, desc, AssetType.LSLText, UUID.Random(),
+                        InventoryType.LSL, PermissionMask.All, (success, item) =>
+                        {
+                            if (success)
+                                // upload the asset
+                                Client.Inventory.RequestUpdateScriptAgentInventory(
+                                    System.Text.Encoding.UTF8.GetBytes(body), item.UUID, true,
+                                    (uploadSuccess, uploadStatus, compileSuccess, compileMessages, itemId, assetId) =>
+                                    {
+                                        var log = $"Filename: {file}";
+                                        if (uploadSuccess)
+                                            log += $" Script successfully uploaded, ItemID {itemId} AssetID {assetId}";
+                                        else
+                                            log += $" Script failed to upload, ItemID {itemId}";
+                                        
+                                        if (compileSuccess)
+                                            log += " compilation successful";
+                                        else
+                                            log += " compilation failed";
+                                        
+                                        Logger.Log(log, Helpers.LogLevel.Info, Client);
+                                    });
+                        });
                 }
-                return ret;
+                return $"Filename: {file} is being uploaded.";
 
             }
-            catch (System.Exception e)
+            catch (Exception e)
             {
                 Logger.Log(e.ToString(), Helpers.LogLevel.Error, Client);
-                return String.Format("Error creating script for {0}", ret);
+                return $"Error creating script for {file}";
             }
-        }
-        /// <summary>
-        /// Encodes the script text for uploading
-        /// </summary>
-        /// <param name="body"></param>
-        public static byte[] EncodeScript(string body)
-        {
-            // Assume this is a string, add 1 for the null terminator ?
-            byte[] stringBytes = System.Text.Encoding.UTF8.GetBytes(body);
-            byte[] assetData = new byte[stringBytes.Length]; //+ 1];
-            Array.Copy(stringBytes, 0, assetData, 0, stringBytes.Length);
-            return assetData;
         }
     }
 

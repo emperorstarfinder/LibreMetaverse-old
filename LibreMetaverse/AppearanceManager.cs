@@ -28,7 +28,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Linq;
+using System.Threading.Tasks;
 using LibreMetaverse;
+using Microsoft.Collections.Extensions;
 using OpenMetaverse.Packets;
 using OpenMetaverse.Imaging;
 using OpenMetaverse.Assets;
@@ -404,6 +406,12 @@ namespace OpenMetaverse
         /// Is server baking complete. It needs doing only once
         /// </summary>
         private bool ServerBakingDone = false;
+
+        private static readonly ParallelOptions _parallelOptions = new ParallelOptions()
+        {
+            MaxDegreeOfParallelism = MAX_CONCURRENT_DOWNLOADS
+        };
+        
         #endregion Private Members
 
         /// <summary>
@@ -412,8 +420,6 @@ namespace OpenMetaverse
         /// <param name="client">A reference to our agent</param>
         public AppearanceManager(GridClient client)
         {
-            CancellationTokenSource = new CancellationTokenSource();
-
             Client = client;
 
             Client.Network.RegisterCallback(PacketType.AgentWearablesUpdate, AgentWearablesUpdateHandler);
@@ -472,12 +478,13 @@ namespace OpenMetaverse
                 RebakeScheduleTimer = null;
             }
 
-            var cancellationToken = CancellationTokenSource.Token;
+            CancellationTokenSource = new CancellationTokenSource();
 
             // This is the first time setting appearance, run through the entire sequence
             AppearanceThread = new Thread(
                 delegate()
                 {
+                    var cancellationToken = CancellationTokenSource.Token;
                     bool success = true;
                     try
                     {
@@ -664,7 +671,8 @@ namespace OpenMetaverse
                         WearableType type = WEARABLE_BAKE_MAP[bakedIndex][wearableIndex];
 
                         if (type == WearableType.Invalid) continue;
-                        hash = Wearables.GetValues(type, true).Aggregate(hash, (current, worn) => current ^ worn.AssetID);
+                        hash = Wearables.Where(e => e.Key == type)
+                            .SelectMany(e => e.Value).Aggregate(hash, (current, worn) => current ^ worn.AssetID);
                     }
 
                     if (hash != UUID.Zero)
@@ -714,16 +722,15 @@ namespace OpenMetaverse
         [Obsolete]
         public UUID GetWearableAsset(WearableType type)
         {
-            IList<WearableData> wearableList;
-            return Wearables.TryGetValue(type, out wearableList) 
+            return Wearables.TryGetValue(type, out var wearableList) 
                 ? wearableList.First().AssetID 
                 : UUID.Zero;
         }
 
         public IEnumerable<UUID> GetWearableAssets(WearableType type)
         {
-            var wearables = Wearables.GetValues(type, true);
-            return wearables.Select(wearable => wearable.AssetID).ToList();
+            return Wearables.Where(e => e.Key == type).SelectMany(e => e.Value)
+                .Select(wearable => wearable.AssetID);
         }
 
         /// <summary>
@@ -765,23 +772,17 @@ namespace OpenMetaverse
         /// <param name="replace">Should existing item on the same point or of the same type be replaced</param>
         public void AddToOutfit(List<InventoryItem> wearableItems, bool replace)
         {
-            var wearables = new List<InventoryWearable>();
-            var attachments = new List<InventoryItem>();
-
-            foreach (InventoryItem item in wearableItems)
-            {
-                if (item is InventoryWearable wearable)
-                    wearables.Add(wearable);
-                else if (item is InventoryAttachment || item is InventoryObject)
-                    attachments.Add(item);
-            }
+            var wearables = wearableItems.OfType<InventoryWearable>()
+                .ToList();
+            var attachments = wearableItems.Where(item => item is InventoryAttachment || item is InventoryObject)
+                .ToList();
 
             lock (Wearables)
             {
                 // Add the given wearables to the wearables collection
                 foreach (InventoryWearable wearableItem in wearables)
                 {
-                    WearableData wd = new WearableData
+                    var wd = new WearableData
                     {
                         AssetID = wearableItem.AssetUUID,
                         AssetType = wearableItem.AssetType,
@@ -796,12 +797,12 @@ namespace OpenMetaverse
                 }
             }
 
-            if (attachments.Count > 0)
+            if (attachments.Any())
             {
-                AddAttachments(attachments, false, replace);
+                AddAttachments(attachments.ToList(), false, replace);
             }
 
-            if (wearables.Count > 0)
+            if (wearables.Any())
             {
                 SendAgentIsNowWearing();
                 DelayedRequestSetAppearance();
@@ -826,16 +827,10 @@ namespace OpenMetaverse
         /// be removed from the outfit</param>
         public void RemoveFromOutfit(List<InventoryItem> wearableItems)
         {
-            var wearables = new List<InventoryWearable>();
-            var attachments = new List<InventoryItem>();
-
-            foreach (var item in wearableItems)
-            {
-                if (item is InventoryWearable wearable)
-                    wearables.Add(wearable);
-                else if (item is InventoryAttachment || item is InventoryObject)
-                    attachments.Add(item);
-            }
+            var wearables = wearableItems.OfType<InventoryWearable>()
+                .ToList();
+            var attachments = wearableItems.Where(item => item is InventoryAttachment || item is InventoryObject)
+                .ToList();
 
             bool needSetAppearance = false;
             lock (Wearables)
@@ -846,7 +841,8 @@ namespace OpenMetaverse
                     if (wearable.AssetType != AssetType.Bodypart        // Remove if it's not a body part
                         && Wearables.ContainsKey(wearable.WearableType)) // And we have that wearable type
                     {
-                        var worn = Wearables.GetValues(wearable.WearableType, true);
+                        var worn = Wearables.Where(e => e.Key == wearable.WearableType)
+                            .SelectMany(e => e.Value);
                         WearableData wearableData = worn.FirstOrDefault(item => item.ItemID == wearable.UUID);
                         if (wearableData == null) continue;
 
@@ -887,16 +883,10 @@ namespace OpenMetaverse
         /// if you know what you're doing</param>
         public void ReplaceOutfit(List<InventoryItem> wearableItems, bool safe)
         {
-            var wearables = new List<InventoryWearable>();
-            var attachments = new List<InventoryItem>();
-
-            foreach (InventoryItem item in wearableItems)
-            {
-                if (item is InventoryWearable wearable)
-                    wearables.Add(wearable);
-                else if (item is InventoryAttachment || item is InventoryObject)
-                    attachments.Add(item);
-            }
+            var wearables = wearableItems.OfType<InventoryWearable>()
+                .ToList();
+            var attachments = wearableItems.Where(item => item is InventoryAttachment || item is InventoryObject)
+                .ToList();
 
             if (safe)
             {
@@ -979,12 +969,8 @@ namespace OpenMetaverse
         {
             lock (Wearables)
             {
-                var wearables = new List<WearableData>();
-                foreach (var wearableType in Wearables.Values)
-                {
-                    wearables.AddRange(wearableType);
-                }
-                return wearables;
+                // ToList will copy the IEnumerable
+                return Wearables.SelectMany(e => e.Value).ToList();
             }
         }
 
@@ -992,9 +978,7 @@ namespace OpenMetaverse
         {
             lock (Wearables)
             {
-                var wearables = new MultiValueDictionary<WearableType, WearableData>();
-                wearables.Merge(Wearables);
-                return wearables;
+                return new MultiValueDictionary<WearableType, WearableData>(Wearables);
             }
         }
 
@@ -1009,8 +993,7 @@ namespace OpenMetaverse
         /// new list of items, false to add these items to the existing outfit</param>
         public void WearOutfit(List<InventoryBase> wearables, bool replaceItems)
         {
-            var wearableItems = new List<InventoryItem>(wearables.Count);
-            wearableItems.AddRange(wearables.OfType<InventoryItem>());
+            var wearableItems = wearables.OfType<InventoryItem>().ToList();
 
             if (replaceItems)
                 ReplaceOutfit(wearableItems);
@@ -1027,20 +1010,9 @@ namespace OpenMetaverse
         /// </summary>
         /// <param name="attachments">A List containing the attachments to add</param>
         /// <param name="removeExistingFirst">If true, tells simulator to remove existing attachment
-        /// first</param>
-        public void AddAttachments(List<InventoryItem> attachments, bool removeExistingFirst)
-        {
-            AddAttachments(attachments, removeExistingFirst, true);
-        }
-
-        /// <summary>
-        /// Adds a list of attachments to our agent
-        /// </summary>
-        /// <param name="attachments">A List containing the attachments to add</param>
-        /// <param name="removeExistingFirst">If true, tells simulator to remove existing attachment
         /// <param name="replace">If true replace existing attachment on this attachment point, otherwise add to it (multi-attachments)</param>
         /// first</param>
-        public void AddAttachments(List<InventoryItem> attachments, bool removeExistingFirst, bool replace)
+        public void AddAttachments(List<InventoryItem> attachments, bool removeExistingFirst, bool replace = true)
         {
             // Use RezMultipleAttachmentsFromInv  to clear out current attachments, and attach new ones
             RezMultipleAttachmentsFromInvPacket attachmentsPacket = new RezMultipleAttachmentsFromInvPacket
@@ -1205,15 +1177,14 @@ namespace OpenMetaverse
         /// <param name="itemID">The inventory itemID of the item to detach</param>
         public void Detach(UUID itemID)
         {
-            DetachAttachmentIntoInvPacket detach =
-                new DetachAttachmentIntoInvPacket
+            var detach = new DetachAttachmentIntoInvPacket
+            {
+                ObjectData =
                 {
-                    ObjectData =
-                    {
-                        AgentID = Client.Self.AgentID,
-                        ItemID = itemID
-                    }
-                };
+                    AgentID = Client.Self.AgentID,
+                    ItemID = itemID
+                }
+            };
 
             Client.Network.SendPacket(detach);
         }
@@ -1246,10 +1217,8 @@ namespace OpenMetaverse
                     {
                         WearableType = (byte) i,
                         // This appears to be hacked on SL server side to support multi-layers
-                        ItemID = Wearables.ContainsKey(type) ? 
-                            (Wearables[type].First() != null ?
-                                Wearables[type].First().ItemID 
-                                : UUID.Zero)
+                        ItemID = Wearables.ContainsKey(type) ?
+                            (Wearables[type].First()?.ItemID ?? UUID.Zero)
                             : UUID.Zero
                     };
                 }
@@ -1631,9 +1600,9 @@ namespace OpenMetaverse
                 return true;
 
             Logger.DebugLog("Downloading " + pendingWearables + " wearable assets");
-
-            Parallel.ForEach<WearableData>(Math.Min(pendingWearables, MAX_CONCURRENT_DOWNLOADS), wearables,
-                delegate(WearableData wearable)
+            
+            Parallel.ForEach(wearables, _parallelOptions,
+                wearable =>
                 {
                     if (wearable.Asset != null) return;
                     AutoResetEvent downloadEvent = new AutoResetEvent(false);
@@ -1701,25 +1670,14 @@ namespace OpenMetaverse
                 if (index == AvatarTextureIndex.Skirt && !Wearables.ContainsKey(WearableType.Skirt))
                     continue;
 
-                AddTextureDownload(index, textures);
+                TextureData textureData = Textures[(int)index];
+                // Add the textureID to the list if this layer has a valid textureID set, it has not already
+                // been downloaded, and it is not already in the download list
+                if (textureData.TextureID != UUID.Zero && textureData.Texture == null && !textures.Contains(textureData.TextureID))
+                    textures.Add(textureData.TextureID);
             }
 
             return textures;
-        }
-
-        /// <summary>
-        /// Helper method to lookup the TextureID for a single layer and add it
-        /// to a list if it is not already present
-        /// </summary>
-        /// <param name="index"></param>
-        /// <param name="textures"></param>
-        private void AddTextureDownload(AvatarTextureIndex index, List<UUID> textures)
-        {
-            TextureData textureData = Textures[(int)index];
-            // Add the textureID to the list if this layer has a valid textureID set, it has not already
-            // been downloaded, and it is not already in the download list
-            if (textureData.TextureID != UUID.Zero && textureData.Texture == null && !textures.Contains(textureData.TextureID))
-                textures.Add(textureData.TextureID);
         }
 
         /// <summary>
@@ -1746,14 +1704,14 @@ namespace OpenMetaverse
 
             Logger.DebugLog("Downloading " + textureIDs.Count + " textures for baking");
 
-            Parallel.ForEach<UUID>(MAX_CONCURRENT_DOWNLOADS, textureIDs,
-                delegate(UUID textureID)
+            Parallel.ForEach(textureIDs, _parallelOptions,
+                textureId =>
                 {
                     try
                     {
                         AutoResetEvent downloadEvent = new AutoResetEvent(false);
 
-                        Client.Assets.RequestImage(textureID,
+                        Client.Assets.RequestImage(textureId,
                             delegate(TextureRequestState state, AssetTexture assetTexture)
                             {
                                 if (state == TextureRequestState.Finished)
@@ -1762,13 +1720,13 @@ namespace OpenMetaverse
 
                                     for (int i = 0; i < Textures.Length; i++)
                                     {
-                                        if (Textures[i].TextureID == textureID)
+                                        if (Textures[i].TextureID == textureId)
                                             Textures[i].Texture = assetTexture;
                                     }
                                 }
                                 else
                                 {
-                                    Logger.Log("Texture " + textureID + " failed to download, one or more bakes will be incomplete",
+                                    Logger.Log("Texture " + textureId + " failed to download, one or more bakes will be incomplete",
                                         Helpers.LogLevel.Warning);
                                 }
 
@@ -1781,7 +1739,7 @@ namespace OpenMetaverse
                     catch (Exception e)
                     {
                         Logger.Log(
-                            $"Download of texture {textureID} failed with exception {e}", 
+                            $"Download of texture {textureId} failed with exception {e}", 
                             Helpers.LogLevel.Warning, Client);
                     }
                 }
@@ -1813,12 +1771,12 @@ namespace OpenMetaverse
                 }
             }
 
-            if (pendingBakes.Count > 0)
+            if (pendingBakes.Any())
             {
                 DownloadTextures(pendingBakes);
 
-                Parallel.ForEach<BakeType>(Math.Min(MAX_CONCURRENT_UPLOADS, pendingBakes.Count), pendingBakes,
-                    delegate(BakeType bakeType)
+                Parallel.ForEach(pendingBakes, _parallelOptions,
+                    bakeType =>
                     {
                         if (!CreateBake(bakeType))
                             success = false;
@@ -1831,11 +1789,7 @@ namespace OpenMetaverse
             {
                 Textures[i].Texture = null;
             }
-
-            // We just allocated and freed a ridiculous amount of memory while 
-            // baking. Signal to the GC to clean up
-            GC.Collect();
-
+            
             return success;
         }
 
@@ -2185,7 +2139,8 @@ namespace OpenMetaverse
                         WearableType type = WEARABLE_BAKE_MAP[bakedIndex][wearableIndex];
 
                         if (type == WearableType.Invalid) continue;
-                        hash = Wearables.GetValues(type, true).Aggregate(hash, (current, worn) => current ^ worn.AssetID);
+                        hash = Wearables.Where(e => e.Key == type)
+                            .SelectMany(e => e.Value).Aggregate(hash, (current, worn) => current ^ worn.AssetID);
                     }
 
                     if (hash != UUID.Zero)
@@ -2328,7 +2283,7 @@ namespace OpenMetaverse
                         {
                             // HACK: I'm so tired and this is so bad.
                             bool match = false;
-                            foreach (var wearable in Wearables.GetValues(type, true))
+                            foreach (var wearable in Wearables.Where(w => w.Key == type).SelectMany(w => w.Value))
                             {
                                 if (wearable.AssetID == block.AssetID || wearable.ItemID == block.ItemID)
                                 {
@@ -2451,9 +2406,15 @@ namespace OpenMetaverse
                 RebakeScheduleTimer = null;
             }
 
-            if (AppearanceThread != null)
+            if (CancellationTokenSource != null)
             {
                 CancellationTokenSource.Cancel();
+                CancellationTokenSource.Dispose();
+                CancellationTokenSource = null;
+            }
+            
+            if (AppearanceThread != null)
+            {
                 AppearanceThread = null;
                 AppearanceThreadRunning = 0;
             }
