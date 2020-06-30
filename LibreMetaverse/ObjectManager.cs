@@ -1759,13 +1759,11 @@ namespace OpenMetaverse
                         ObjectMediaMessage msg = new ObjectMediaMessage();
                         msg.Deserialize((OSDMap)result);
 
-                        if (msg.Request is ObjectMediaResponse)
+                        if (msg.Request is ObjectMediaResponse response)
                         {
-                            ObjectMediaResponse response = (ObjectMediaResponse)msg.Request;
-
                             if (Client.Settings.OBJECT_TRACKING)
                             {
-                                Primitive prim = sim.ObjectsPrimitives.Find((Primitive p) => { return p.ID == primID; });
+                                Primitive prim = sim.ObjectsPrimitives.Find((Primitive p) => p.ID == primID);
                                 if (prim != null)
                                 {
                                     prim.MediaVersion = response.Version;
@@ -2808,7 +2806,7 @@ namespace OpenMetaverse
                 if (Client.Settings.OBJECT_TRACKING)
                 {
                     Primitive findPrim = simulator.ObjectsPrimitives.Find(
-                        delegate(Primitive prim) { return prim.ID == props.ObjectID; });
+                        prim => prim.ID == props.ObjectID);
 
                     if (findPrim != null)
                     {
@@ -2858,7 +2856,7 @@ namespace OpenMetaverse
             if (Client.Settings.OBJECT_TRACKING)
             {
                 Primitive findPrim = simulator.ObjectsPrimitives.Find(
-                        delegate(Primitive prim) { return prim.ID == op.ObjectData.ObjectID; });
+                    prim => prim.ID == op.ObjectData.ObjectID);
 
                 if (findPrim != null)
                 {
